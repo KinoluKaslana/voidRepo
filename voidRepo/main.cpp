@@ -1,65 +1,71 @@
 #include <limits>
+#include <vector>
 #include <type_traits>
-template<typename _Ty>
-struct _number_limits_integral {
-private:
-	template<typename _T>
-	static constexpr  _T _max(char(*)[std::is_unsigned_v<_T>] = nullptr) {
-		_T value = 0;
-		constexpr  unsigned short size = sizeof(_T);
-		for (unsigned int i = 0; i != size; i++) {
-			value <<= 8;
-			value |= 0xFF;
-		}
-		return value;
-	}
-	template<typename _T>
-	static constexpr  _T _max(char(*)[!std::is_unsigned_v<_T>] = nullptr) {
-		_T value = 0x7F;
-		constexpr unsigned short size = sizeof(_T);
-		for (unsigned int i = 0; i != size - 1; i++) {
-			value <<= 8;
-			value |= 0xFF;
-		}
-		return value;
-	}
-	template<typename _T>
-	static constexpr  _T _min(char(*)[std::is_unsigned_v<_T>] = nullptr) {
-		return 0;
-	}
-	template<typename _T>
-	static constexpr  _T _min(char(*)[!std::is_unsigned_v<_T>] = nullptr) {
-		_T value = 0x80;
-		auto shift = (8 * (sizeof(_T) - 1));
-		if (shift) value <<= shift;
-		return value;
-	}
-public:
-	static constexpr  _Ty max() {
-		return _max<_Ty>();
-	}
-	static constexpr  _Ty min() {
-		return _min<_Ty>();
-	}
-};
-template<typename _Ty>
-struct _number_limits_floating {
+#include <algorithm>
+using namespace std;
 
-};
+// simple imp. with intg.
 
-template<typename  _Ty = int>
-struct number_limits :
-	public  std::enable_if<std::is_arithmetic_v<_Ty>, typename std::conditional_t<
-	std::is_integral_v<_Ty>,
-	typename ::_number_limits_integral<_Ty>,
-	typename ::_number_limits_floating<_Ty>>>::type{};
+template<typename _Ty, typename _TySize>
+void MergeSortImpl(vector<_Ty>& ds,const _TySize low,const _TySize mid,const _TySize max) {
+
+	vector<_Ty> tDs(max - low + 1);
+
+	copy(ds.begin() + low, ds.begin() + max + 1, tDs.begin());
+	auto lowIndex = 0;
+	auto highIndex = mid - low;
+	auto maxIndex = max - low;
+	auto midIndex = mid - low;
+	auto index = low;
+
+	while(lowIndex < midIndex && highIndex < maxIndex) {
+		if(tDs[highIndex] < tDs[lowIndex]) {
+			ds[index++] = tDs[highIndex++];
+		}
+		else if(tDs[highIndex] > tDs[lowIndex]) {
+			ds[index++] = tDs[lowIndex++];
+		}
+	}
+	while(lowIndex < midIndex) {
+		if(index <= max) {
+			ds[index++] = tDs[lowIndex++];
+		}
+		else {
+			throw "overflow";
+		}
+	}
+	while (highIndex < maxIndex) {
+		if (index <= max) {
+			ds[index++] = tDs[highIndex++];
+		}
+		else {
+			throw "overflow";
+		}
+	}
+}
+
+
+
+template<typename _Ty, typename _TySize>
+void MergeSort(vector<_Ty>& ds,const _TySize low,const _TySize max) {
+	if ((max - low) <= 1) return;
+	auto mid = low + (max - low + 1) / 2;
+	MergeSort(ds, low, mid);
+	MergeSort(ds, mid, max);
+	MergeSortImpl(ds, low, mid, max);
+}
+template<typename _Ty>
+void MergeSort(vector<_Ty>& ds) {
+	auto max = ds.size() - 1;
+	MergeSort(ds, static_cast<decltype(max)>(0), max);
+}
+
 
 int main() {
-	char ed = number_limits<char>::max();
-	char edd = number_limits<char>::min();
-	char edde = std::numeric_limits<char>::min();
-	double ff = std::numeric_limits<double>::max();
-	auto pff = &ff;
+
+	vector<int> array = { 6, 4, 5, 2, 8 };
+	MergeSort(array);
+
 	return 0;
 }
 
