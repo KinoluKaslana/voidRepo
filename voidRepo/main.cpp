@@ -11,6 +11,26 @@ struct typeBase {
 	using type = _Ty;
 };
 
+
+template<typename _Ty> struct removeClassMemberSpecifiers : typeBase<_Ty> {};
+
+template<typename _Ty> struct removeClassMemberSpecifiers<_Ty const> : typeBase<_Ty> {};
+
+template<typename ... Args>
+using removeClassMemberSpecifiers_t = typename removeClassMemberSpecifiers<Args...>::type;
+
+template<typename _Ty, typename ... >
+struct removeClassMemberFunctionSpecifiers : typeBase<_Ty> {};
+
+template<typename _Ty, typename cTy, typename ... Args>
+struct removeClassMemberFunctionSpecifiers<_Ty(cTy::*)(Args...)> : typeBase<_Ty(cTy::*)(Args...)> {};
+
+template<typename _Ty, typename cTy, typename ... Args>
+struct removeClassMemberFunctionSpecifiers<_Ty(cTy::*) (Args...) const noexcept> : typeBase<_Ty(cTy::*)(Args...)> {};
+
+template<typename ... Args>
+using removeClassMemberFunctionSpecifiers_t = typename removeClassMemberFunctionSpecifiers<Args...>::type;
+
 template<typename _Ty, typename ... Args>
 struct funcType : typeBase<int> {};
 
@@ -28,9 +48,9 @@ using funcType_t = typename funcType<_Ty>::type;
 
 template<typename _Ty>
 constexpr bool isFunc(_Ty par) {
-	return std::is_function<typename funcType<decltype(par)>::type>::value;
+	using type = removeClassMemberFunctionSpecifiers_t<removeClassMemberSpecifiers_t<decltype(par)>>;
+	return std::is_function_v<funcType_t<type>>;
 }
-
 
 template<typename _Ty>
 struct typeHelper {
@@ -60,7 +80,7 @@ struct contigousContainerChecker : public std::false_type, typeHelper<void> {};
 
 template<typename _Ty>
 struct contigousContainerChecker<_Ty,
-	std::enable_if<isFunc(&_Ty::iterator::operator+),_Ty>
+	std::enable_if_t<isFunc(&_Ty::iterator::operator+),_Ty>
 	> :public std::true_type, typeHelper<_Ty> {};
 
 template<typename _Ty, typename = void>
@@ -125,11 +145,11 @@ void MergeSort(vector<_Ty>& ds) {
 	MergeSort(ds, static_cast<decltype(max)>(0), max);
 }
 
-
 void f() {
 	auto e1 = isContainer<std::vector<int>>::value;
-	std::remove_const_t<decltype(&std::vector<int>::iterator::operator+)> eq;
-	isFunc(&std::vector<int>::iterator::operator+);
+	using Ty = std::remove_const_t<decltype(&std::vector<int>::iterator::operator+)>;
+	using type = removeClassMemberFunctionSpecifiers_t<removeClassMemberSpecifiers_t<decltype(&std::vector<int>::iterator::operator+)>>;
+	
 }
 
 int main() {
