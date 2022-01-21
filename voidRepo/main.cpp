@@ -1,16 +1,15 @@
-#include <limits>
-#include <vector>
-#include <type_traits>
-#include <algorithm>
-using namespace std;
 
+#include <vector>
+#include <array>
+#include <string>
+#include <list>
+#include <type_traits>
 struct nBase {};
 
 template<typename _Ty>
 struct typeBase {
 	using type = _Ty;
 };
-
 
 template<typename _Ty> struct removeClassMemberSpecifiers : typeBase<_Ty> {};
 
@@ -27,7 +26,6 @@ struct removeClassMemberFunctionSpecifiers<_Ty(cTy::*)(Args...)> : typeBase<_Ty(
 
 template<typename _Ty, typename cTy, typename ... Args>
 struct removeClassMemberFunctionSpecifiers<_Ty(cTy::*) (Args...) const noexcept> : typeBase<_Ty(cTy::*)(Args...)> {};
-
 template<typename ... Args>
 using removeClassMemberFunctionSpecifiers_t = typename removeClassMemberFunctionSpecifiers<Args...>::type;
 
@@ -52,6 +50,7 @@ constexpr bool isFunc(_Ty par) {
 	return std::is_function_v<funcType_t<type>>;
 }
 
+
 template<typename _Ty>
 struct typeHelper {
 	using type = nBase;
@@ -61,7 +60,7 @@ template<>
 struct typeHelper<void> {
 	using type = void;
 };
-// simple imp. with intg.
+
 template<typename _Ty, typename = void >
 struct isContainer : public std::false_type, typeHelper<void> {};
 
@@ -73,89 +72,63 @@ struct isContainer<_Ty,
 	typename _Ty::reference,
 	typename _Ty::const_reference,
 	typename _Ty::const_iterator
-	>> : public std::true_type, typeHelper<_Ty> {};
+	>> : public std::true_type, typeHelper<_Ty>{};
 
-template<typename _Ty,typename bTy = void>
+template<typename _Ty>
+constexpr bool isContainer_v = isContainer<_Ty>::value;
+
+template<typename ...>
 struct contigousContainerChecker : public std::false_type, typeHelper<void> {};
 
 template<typename _Ty>
-struct contigousContainerChecker<_Ty,
-	std::enable_if_t<isFunc(&_Ty::iterator::operator+),_Ty>
-	> :public std::true_type, typeHelper<_Ty> {};
+struct contigousContainerChecker<_Ty, std::enable_if_t<isFunc(&_Ty::iterator::operator+), _Ty>> :public std::true_type {};
 
-template<typename _Ty, typename = void>
+template<typename _Ty>
+struct contigousContainerChecker<_Ty> : public std::false_type, typeHelper<void> {};
+
+template<typename ...>
 struct isContigousContainerImpl : std::false_type, typeHelper<void> {};
 
 template<typename _Ty>
-struct isContigousContainerImpl<_Ty, int>:
-	std::enable_if<isContainer<_Ty>::value && contigousContainerChecker<_Ty>::value, std::true_type>::type, typeHelper<_Ty>
+struct isContigousContainerImpl<_Ty> :
+	std::enable_if_t<isContainer_v<_Ty>&& contigousContainerChecker<_Ty>::value, std::true_type>, typeHelper<_Ty>
 {};
+
+
+template<typename ...>
+struct isContiguousContainer : isContigousContainerImpl<void, void> {};
+
 template<typename _Ty>
-struct isContiguousContainer : isContigousContainerImpl<_Ty> {};
+struct isContiguousContainer<_Ty> : isContigousContainerImpl<_Ty> {};
 
-template<typename _Ty, typename _TySize>
-void MergeSortImpl(vector<_Ty>& ds,const _TySize low,const _TySize mid,const _TySize max) {
-	vector<_Ty> tDs(max - low + 1);
-	copy(ds.begin() + low, ds.begin() + max + 1, tDs.begin());
-	auto lowIndex = 0;
-	auto highIndex = mid - low;
-	auto maxIndex = max - low;
-	auto midIndex = mid - low;
-	auto index = low;
-
-	while(lowIndex < midIndex && highIndex < maxIndex) {
-		if(tDs[highIndex] < tDs[lowIndex]) {
-			ds[index++] = tDs[highIndex++];
-		}
-		else if(tDs[highIndex] > tDs[lowIndex]) {
-			ds[index++] = tDs[lowIndex++];
-		}
-	}
-	while(lowIndex < midIndex) {
-		if(index <= max) {
-			ds[index++] = tDs[lowIndex++];
-		}
-		else {
-			throw "overflow";
-		}
-	}
-	while (highIndex < maxIndex) {
-		if (index <= max) {
-			ds[index++] = tDs[highIndex++];
-		}
-		else {
-			throw "overflow";
-		}
-	}
+template<typename ...>
+constexpr bool isContigousContainerHelper(...) {
+	return false;
 }
 
-
-
-template<typename _Ty, typename _TySize>
-void MergeSort(vector<_Ty>& ds,const _TySize low,const _TySize max) {
-	if ((max - low) <= 1) return;
-	auto mid = low + (max - low + 1) / 2;
-	MergeSort(ds, low, mid);
-	MergeSort(ds, mid, max);
-	MergeSortImpl(ds, low, mid, max);
-}
 template<typename _Ty>
-void MergeSort(vector<_Ty>& ds) {
-	auto max = ds.size() - 1;
-	MergeSort(ds, static_cast<decltype(max)>(0), max);
+constexpr bool isContigousContainerHelper(decltype(&_Ty::iterator::operator+)) {
+	return isContiguousContainer<_Ty>::value;
 }
+
+template<typename _Ty>
+constexpr bool isContiguousContainer_v = isContiguousContainer<_Ty>::value;
+
 
 void f() {
-	auto e1 = isContainer<std::vector<int>>::value;
-	using Ty = std::remove_const_t<decltype(&std::vector<int>::iterator::operator+)>;
-	using type = removeClassMemberFunctionSpecifiers_t<removeClassMemberSpecifiers_t<decltype(&std::vector<int>::iterator::operator+)>>;
-	
+	//auto e1 = isContainer<std::vector<int>>::value;
+	//auto e2 = isFunc(&std::vector<int>::iterator::operator+);
+	//auto e3 = isContiguousContainer_v<std::vector<int>>;
+	//auto e4 = contigousContainerChecker<std::vector<int>>::value;
+	auto e5 = isContiguousContainer_v<std::vector<int>>;
+	//auto e6 = isContiguousContainer_v<std::vector<bool>>;
+	//auto e7 = contigousContainerChecker<std::list<int>>::value;
+	//auto e8 = contigousContainerChecker<std::array<int,6>>::value;
+
 }
 
 int main() {
-
-	vector<int> array = { 6, 4, 5, 2, 8 };
-	MergeSort(array);
+	f();
 	return 0;
 }
 
