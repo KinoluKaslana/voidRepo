@@ -1,4 +1,3 @@
-
 #include <vector>
 #include <array>
 #include <string>
@@ -62,7 +61,7 @@ struct typeHelper<void> {
 };
 
 template<typename _Ty, typename = void >
-struct isContainer : public std::false_type, typeHelper<void> {};
+struct isContainer : public std::false_type {};
 
 template<typename _Ty>
 struct isContainer<_Ty,
@@ -77,26 +76,47 @@ struct isContainer<_Ty,
 template<typename _Ty>
 constexpr bool isContainer_v = isContainer<_Ty>::value;
 
-template<typename ...>
-struct contigousContainerChecker : public std::false_type, typeHelper<void> {};
+template<typename _Ty>
+struct isPoint : std::false_type {};
 
 template<typename _Ty>
-struct contigousContainerChecker<_Ty, std::enable_if_t<isFunc(&_Ty::iterator::operator+), _Ty>> :public std::true_type {};
+struct isPoint<_Ty*> : std::true_type, typeHelper<_Ty> {};
 
 template<typename _Ty>
-struct contigousContainerChecker<_Ty> : public std::false_type, typeHelper<void> {};
+constexpr bool isPoint_v = isPoint<_Ty>::value;
 
-template<typename ...>
-struct isContigousContainerImpl : std::false_type, typeHelper<void> {};
+template<typename _Ty, typename classTy = void>
+struct isMemberPoint : std::false_type {};
+
+template<typename _Ty, typename classTy>
+struct isMemberPoint<_Ty classTy::*> : std::true_type, typeHelper<_Ty> {
+	using classType = classTy;
+};
 
 template<typename _Ty>
-struct isContigousContainerImpl<_Ty> :
-	std::enable_if_t<isContainer_v<_Ty>&& contigousContainerChecker<_Ty>::value, std::true_type>, typeHelper<_Ty>
+constexpr bool isMemberPoint_v = isMemberPoint<_Ty>::value;
+
+template<typename _Ty, typename _ = void>
+struct contigousContainerChecker : public std::false_type {};
+
+template<typename _Ty>
+struct contigousContainerChecker<_Ty, std::enable_if_t<isFunc(&_Ty::iterator::operator+)>> :public std::true_type {};
+
+template<typename _Ty, typename _ = void>
+struct isContigousContainerImpl : std::false_type {};
+
+template<typename _Ty>
+struct isContigousContainerImpl<_Ty, std::enable_if_t<isContainer_v<_Ty> && !isMemberPoint_v<typename _Ty::iterator> && isPoint_v<typename _Ty::iterator>>> :
+	std::true_type, typeHelper<_Ty>
 {};
 
+template<typename _Ty>
+struct isContigousContainerImpl<_Ty, std::enable_if_t<isContainer_v<_Ty>&& contigousContainerChecker<_Ty>::value>> :
+	std::true_type, typeHelper<_Ty>
+{};
 
 template<typename ...>
-struct isContiguousContainer : isContigousContainerImpl<void, void> {};
+struct isContiguousContainer : isContigousContainerImpl<void> {};
 
 template<typename _Ty>
 struct isContiguousContainer<_Ty> : isContigousContainerImpl<_Ty> {};
@@ -114,17 +134,12 @@ constexpr bool isContigousContainerHelper(decltype(&_Ty::iterator::operator+)) {
 template<typename _Ty>
 constexpr bool isContiguousContainer_v = isContiguousContainer<_Ty>::value;
 
-
 void f() {
-	//auto e1 = isContainer<std::vector<int>>::value;
-	//auto e2 = isFunc(&std::vector<int>::iterator::operator+);
-	//auto e3 = isContiguousContainer_v<std::vector<int>>;
-	//auto e4 = contigousContainerChecker<std::vector<int>>::value;
-	auto e5 = isContiguousContainer_v<std::vector<int>>;
-	//auto e6 = isContiguousContainer_v<std::vector<bool>>;
-	//auto e7 = contigousContainerChecker<std::list<int>>::value;
-	//auto e8 = contigousContainerChecker<std::array<int,6>>::value;
-
+	auto e1 = isContiguousContainer_v<std::vector<int>>;
+	auto e2 = isContiguousContainer_v<std::vector<int>>;
+	auto e3 = isContiguousContainer_v<std::vector<bool>>;
+	auto e4 = isContiguousContainer_v<std::list<int>>;
+	auto e5 = isContiguousContainer_v<std::array<int, 6>>;
 }
 
 int main() {
